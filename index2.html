@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Musikalisches Würfelspiel — A Leibnizian Tonal Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#03030c;
+  --cyan:#00d4ff;
+  --violet:#7c3aed;
+  --amber:#f59e0b;
+  --card-bg:rgba(255,255,255,0.03);
+  --card-border:rgba(0,212,255,0.15);
+  --card-shadow:0 0 20px rgba(0,212,255,0.05);
+  --font-mono:'Space Mono',monospace;
+  --font-sans:'Inter',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:#e0e8f0;
+  font-family:var(--font-sans);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+#bg-canvas{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
+
+/* ============================================================
+   INTRO
+   ============================================================ */
+#intro{
+  position:fixed;
+  inset:0;
+  z-index:100;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  background:transparent;
+  transition:opacity 1s ease;
+}
+#intro.hidden{opacity:0;pointer-events:none}
+
+#earth{
+  position:absolute;
+  bottom:-60px;
+  left:50%;
+  width:320px;
+  height:320px;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 38%,
+    #4fc3f7 0%,
+    #0288d1 18%,
+    #0d47a1 38%,
+    #1b5e20 52%,
+    #2e7d32 60%,
+    #1565c0 72%,
+    #01579b 88%,
+    #002171 100%);
+  box-shadow:0 0 60px rgba(79,195,247,0.5),0 0 120px rgba(2,136,209,0.3);
+  transform:translateX(-50%) scale(2.5);
+  animation:earth-recede 3.5s ease-in 0.8s forwards;
+}
+#atmosphere-glow{
+  position:absolute;
+  bottom:-100px;
+  left:50%;
+  width:500px;
+  height:500px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(79,195,247,0.18) 0%,rgba(2,136,209,0.10) 40%,transparent 70%);
+  transform:translateX(-50%);
+  animation:atmo-fade 2.5s ease-out 0s forwards;
+  pointer-events:none;
+}
+#intro-content{
+  position:relative;
+  z-index:2;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:18px;
+}
+#intro-title{
+  font-family:var(--font-mono);
+  font-size:clamp(1.1rem,3.5vw,2.4rem);
+  font-weight:700;
+  letter-spacing:0.18em;
+  color:#fff;
+  text-shadow:0 0 20px rgba(0,212,255,0.5);
+  opacity:0;
+  animation:fade-in-title 1.2s ease 2s forwards, title-glow 3s ease-in-out 3.2s infinite;
+}
+#intro-sub{
+  font-family:var(--font-sans);
+  font-size:clamp(0.85rem,2vw,1.15rem);
+  font-weight:300;
+  color:var(--cyan);
+  letter-spacing:0.08em;
+  opacity:0;
+  animation:fade-in-title 1s ease 3.5s forwards;
+}
+#intro-sub2{
+  font-family:var(--font-mono);
+  font-size:0.72rem;
+  color:rgba(0,212,255,0.5);
+  letter-spacing:0.12em;
+  opacity:0;
+  animation:fade-in-title 1s ease 3.8s forwards;
+}
+#enter-btn{
+  margin-top:12px;
+  font-family:var(--font-mono);
+  font-size:0.85rem;
+  font-weight:700;
+  letter-spacing:0.14em;
+  color:var(--cyan);
+  background:transparent;
+  border:1px solid var(--cyan);
+  border-radius:2px;
+  padding:12px 32px;
+  cursor:pointer;
+  opacity:0;
+  animation:fade-in-title 0.8s ease 4.5s forwards, pulse-enter 2s ease-in-out 5.3s infinite;
+  transition:background 0.2s, color 0.2s;
+}
+#enter-btn:hover{background:rgba(0,212,255,0.12);color:#fff}
+
+@keyframes earth-recede{
+  0%  {transform:translateX(-50%) scale(2.5);opacity:1}
+  100%{transform:translateX(-50%) scale(0.02);opacity:0}
+}
+@keyframes atmo-fade{
+  0%  {opacity:1}
+  100%{opacity:0}
+}
+@keyframes fade-in-title{
+  from{opacity:0;transform:translateY(10px)}
+  to  {opacity:1;transform:translateY(0)}
+}
+@keyframes title-glow{
+  0%,100%{text-shadow:0 0 20px rgba(0,212,255,0.5)}
+  50%    {text-shadow:0 0 40px rgba(0,212,255,0.9),0 0 80px rgba(0,212,255,0.3)}
+}
+@keyframes pulse-enter{
+  0%,100%{box-shadow:0 0 10px rgba(0,212,255,0.3)}
+  50%    {box-shadow:0 0 30px rgba(0,212,255,0.8),0 0 60px rgba(0,212,255,0.3)}
+}
+@keyframes slide-up{
+  from{transform:translateY(60px);opacity:0}
+  to  {transform:translateY(0);opacity:1}
+}
+@keyframes bar-roll{
+  0%  {transform:scale(1.08);border-color:rgba(0,212,255,0.9);box-shadow:0 0 24px rgba(0,212,255,0.5)}
+  100%{transform:scale(1);border-color:rgba(0,212,255,0.2);box-shadow:none}
+}
+@keyframes dice-spin{
+  0%  {transform:rotate(0deg) scale(1.4)}
+  60% {transform:rotate(360deg) scale(1.2)}
+  100%{transform:rotate(360deg) scale(1)}
+}
+@keyframes chip-pop{
+  0%  {transform:scale(0.7);opacity:0}
+  70% {transform:scale(1.1)}
+  100%{transform:scale(1);opacity:1}
+}
+@keyframes reading-in{
+  from{opacity:0;transform:translateX(-8px)}
+  to  {opacity:1;transform:translateX(0)}
+}
+
+/* ============================================================
+   MAIN APP
+   ============================================================ */
+#app{
+  position:relative;
+  z-index:10;
+  max-width:1200px;
+  margin:0 auto;
+  padding:0 16px 48px;
+  opacity:0;
+  transform:translateY(60px);
+}
+#app.visible{
+  animation:slide-up 0.9s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+header{
+  padding:28px 0 20px;
+  border-bottom:1px solid rgba(0,212,255,0.1);
+  margin-bottom:24px;
+}
+.header-inner{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.header-title{
+  font-family:var(--font-mono);
+  font-size:clamp(1rem,2.5vw,1.5rem);
+  font-weight:700;
+  letter-spacing:0.12em;
+  color:#fff;
+}
+.header-sub{
+  font-family:var(--font-mono);
+  font-size:0.7rem;
+  color:rgba(0,212,255,0.6);
+  letter-spacing:0.1em;
+}
+
+/* ============================================================
+   PRIMITIVES BAR
+   ============================================================ */
+#primitives-bar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:24px;
+}
+.prim-chip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:2px;
+  padding:8px 12px;
+  cursor:default;
+  position:relative;
+  transition:box-shadow 0.2s,border-color 0.2s;
+  flex:1;
+  min-width:80px;
+}
+.prim-chip:hover{border-color:rgba(0,212,255,0.4);box-shadow:0 0 12px rgba(0,212,255,0.15)}
+.prim-chip:hover .prim-tooltip{opacity:1;pointer-events:auto;transform:translateY(0)}
+.prim-note{
+  font-family:var(--font-mono);
+  font-size:1.4rem;
+  font-weight:700;
+  line-height:1;
+}
+.prim-names{display:flex;flex-direction:column;gap:1px}
+.prim-latin{font-family:var(--font-mono);font-size:0.62rem;color:rgba(255,255,255,0.7);letter-spacing:0.06em}
+.prim-english{font-family:var(--font-sans);font-size:0.6rem;color:rgba(255,255,255,0.45);font-weight:300}
+.prim-tooltip{
+  position:absolute;
+  bottom:calc(100% + 8px);
+  left:50%;
+  transform:translateX(-50%) translateY(6px);
+  width:220px;
+  background:#0a0a1e;
+  border:1px solid rgba(0,212,255,0.25);
+  border-radius:2px;
+  padding:10px 12px;
+  font-size:0.72rem;
+  line-height:1.5;
+  color:rgba(255,255,255,0.75);
+  font-family:var(--font-sans);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.2s,transform 0.2s;
+  z-index:50;
+  white-space:normal;
+}
+
+/* ============================================================
+   CONTROLS ROW
+   ============================================================ */
+#controls-row{
+  display:flex;
+  gap:10px;
+  margin-bottom:24px;
+  flex-wrap:wrap;
+}
+.ctrl-btn{
+  font-family:var(--font-mono);
+  font-size:0.75rem;
+  font-weight:700;
+  letter-spacing:0.1em;
+  color:var(--cyan);
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:2px;
+  padding:10px 20px;
+  cursor:pointer;
+  transition:box-shadow 0.2s,background 0.2s,border-color 0.2s;
+}
+.ctrl-btn:hover{box-shadow:0 0 12px rgba(0,212,255,0.4);border-color:rgba(0,212,255,0.5);background:rgba(0,212,255,0.07)}
+.ctrl-btn.reset{color:var(--amber);border-color:rgba(245,158,11,0.3)}
+.ctrl-btn.reset:hover{box-shadow:0 0 12px rgba(245,158,11,0.4);border-color:rgba(245,158,11,0.6);background:rgba(245,158,11,0.07)}
+
+/* ============================================================
+   COMPOSITION SECTION
+   ============================================================ */
+#composition-section{margin-bottom:0}
+
+#grid{
+  display:grid;
+  grid-template-columns:repeat(8,1fr);
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.bar-cell{
+  background:var(--card-bg);
+  border:1px solid rgba(0,212,255,0.2);
+  border-radius:2px;
+  padding:10px 8px;
+  cursor:pointer;
+  transition:border-color 0.2s,box-shadow 0.2s;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-height:130px;
+  position:relative;
+}
+.bar-cell:hover{border-color:rgba(0,212,255,0.5);box-shadow:0 0 12px rgba(0,212,255,0.15)}
+.bar-cell.rolling{animation:bar-roll 0.5s ease-out forwards}
+.bar-cell.active-playback{border-color:rgba(0,212,255,0.7);box-shadow:0 0 16px rgba(0,212,255,0.25)}
+
+.bar-num{
+  font-family:var(--font-mono);
+  font-size:0.6rem;
+  color:rgba(0,212,255,0.5);
+  letter-spacing:0.08em;
+}
+.bar-dice{
+  font-size:1.4rem;
+  text-align:center;
+  line-height:1;
+  min-height:1.5rem;
+}
+.bar-dice.just-rolled{
+  animation:dice-spin 0.5s ease-out;
+  filter:drop-shadow(0 0 6px var(--amber));
+}
+.note-dots{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.note-row{
+  display:flex;
+  gap:3px;
+  flex-wrap:wrap;
+}
+.ndot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  flex-shrink:0;
+}
+.ndot.bass{
+  width:6px;
+  height:6px;
+  opacity:0.65;
+}
+.bar-label{
+  font-family:var(--font-mono);
+  font-size:0.52rem;
+  color:rgba(255,255,255,0.4);
+  line-height:1.3;
+  word-break:break-word;
+}
+
+/* ============================================================
+   WÜRFELSPIEL TABLE
+   ============================================================ */
+#wuerfel-toggle{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:8px;
+}
+.toggle-btn{
+  font-family:var(--font-mono);
+  font-size:0.68rem;
+  letter-spacing:0.08em;
+  color:rgba(0,212,255,0.6);
+  background:none;
+  border:1px solid rgba(0,212,255,0.2);
+  border-radius:2px;
+  padding:5px 12px;
+  cursor:pointer;
+  transition:color 0.2s,border-color 0.2s;
+}
+.toggle-btn:hover{color:var(--cyan);border-color:rgba(0,212,255,0.5)}
+
+#wuerfel-table-wrap{
+  display:none;
+  overflow-x:auto;
+  margin-bottom:16px;
+}
+#wuerfel-table-wrap.open{display:block}
+.w-table{
+  border-collapse:collapse;
+  width:100%;
+  font-family:var(--font-mono);
+  font-size:0.62rem;
+}
+.w-table th{
+  color:rgba(0,212,255,0.7);
+  border-bottom:1px solid rgba(0,212,255,0.15);
+  padding:5px 8px;
+  text-align:center;
+  letter-spacing:0.06em;
+}
+.w-table td{
+  padding:4px 8px;
+  text-align:center;
+  border:1px solid rgba(255,255,255,0.04);
+  color:rgba(255,255,255,0.55);
+  cursor:pointer;
+  transition:background 0.15s,color 0.15s;
+}
+.w-table td:hover{background:rgba(0,212,255,0.07);color:rgba(255,255,255,0.85)}
+.w-table td.selected{
+  background:rgba(0,212,255,0.12);
+  color:var(--cyan);
+  border-color:rgba(0,212,255,0.4);
+}
+.row-label{color:rgba(0,212,255,0.5);font-size:0.6rem}
+
+/* ============================================================
+   TRANSPORT BAR
+   ============================================================ */
+#transport{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:2px;
+  padding:12px 16px;
+  margin-bottom:16px;
+  box-shadow:var(--card-shadow);
+}
+#progress-wrap{
+  width:100%;
+  height:4px;
+  background:rgba(255,255,255,0.08);
+  border-radius:2px;
+  margin-bottom:10px;
+  position:relative;
+  cursor:pointer;
+}
+#progress-fill{
+  height:100%;
+  background:var(--cyan);
+  border-radius:2px;
+  width:0%;
+  transition:width 0.1s linear;
+  box-shadow:0 0 6px rgba(0,212,255,0.6);
+  pointer-events:none;
+}
+#progress-dot{
+  position:absolute;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--cyan);
+  box-shadow:0 0 8px rgba(0,212,255,0.8);
+  left:0%;
+  pointer-events:none;
+  transition:left 0.1s linear;
+}
+.transport-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.t-btn{
+  font-size:1.1rem;
+  background:none;
+  border:none;
+  color:rgba(0,212,255,0.7);
+  cursor:pointer;
+  padding:4px 6px;
+  border-radius:2px;
+  transition:color 0.2s,text-shadow 0.2s;
+  line-height:1;
+}
+.t-btn:hover{color:var(--cyan);text-shadow:0 0 8px rgba(0,212,255,0.6)}
+.t-btn.play-btn{
+  font-size:1.4rem;
+  color:var(--cyan);
+  text-shadow:0 0 8px rgba(0,212,255,0.5);
+}
+.t-btn.loop-btn{opacity:0.5;transition:opacity 0.2s,text-shadow 0.2s}
+.t-btn.loop-btn.active{opacity:1;text-shadow:0 0 10px rgba(0,212,255,0.8)}
+#time-display{
+  font-family:var(--font-mono);
+  font-size:0.72rem;
+  color:rgba(0,212,255,0.7);
+  letter-spacing:0.06em;
+  margin-left:auto;
+  white-space:nowrap;
+}
+.tempo-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-left:8px;
+}
+.tempo-label{font-family:var(--font-mono);font-size:0.65rem;color:rgba(255,255,255,0.45)}
+#tempo-slider{
+  -webkit-appearance:none;
+  appearance:none;
+  width:90px;
+  height:3px;
+  background:rgba(0,212,255,0.2);
+  border-radius:2px;
+  outline:none;
+  cursor:pointer;
+}
+#tempo-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:var(--cyan);
+  box-shadow:0 0 6px rgba(0,212,255,0.6);
+}
+#tempo-val{font-family:var(--font-mono);font-size:0.65rem;color:var(--cyan);min-width:32px}
+
+/* ============================================================
+   READING PANEL
+   ============================================================ */
+#reading-panel{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:2px;
+  padding:20px;
+  box-shadow:var(--card-shadow);
+  min-height:80px;
+  margin-bottom:16px;
+}
+#reading-panel .rp-empty{
+  font-family:var(--font-mono);
+  font-size:0.72rem;
+  color:rgba(255,255,255,0.2);
+  letter-spacing:0.08em;
+}
+#reading-list{display:flex;flex-direction:column;gap:10px}
+.reading-item{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:12px;
+  padding:10px 12px;
+  background:rgba(255,255,255,0.02);
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:2px;
+  animation:reading-in 0.4s ease;
+  transition:border-color 0.2s,background 0.2s;
+}
+.reading-item.current{
+  border-color:rgba(0,212,255,0.4);
+  background:rgba(0,212,255,0.05);
+}
+.ri-left{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:42px}
+.ri-bar{font-family:var(--font-mono);font-size:0.65rem;color:rgba(0,212,255,0.6)}
+.ri-dice{font-size:1.1rem}
+.ri-right{display:flex;flex-direction:column;gap:3px}
+.ri-label{font-family:var(--font-mono);font-size:0.7rem;color:rgba(255,255,255,0.8);font-weight:700}
+.ri-gloss{font-size:0.72rem;color:rgba(255,255,255,0.5);line-height:1.5;font-style:italic}
+
+#analysis-panel{margin-top:16px;padding-top:16px;border-top:1px solid rgba(0,212,255,0.1)}
+.analysis-title{font-family:var(--font-mono);font-size:0.7rem;letter-spacing:0.1em;color:rgba(0,212,255,0.7);margin-bottom:12px}
+.tally-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tally-chip{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:2px;
+  border:1px solid rgba(255,255,255,0.08);
+  font-family:var(--font-mono);
+  font-size:0.68rem;
+  animation:chip-pop 0.4s ease;
+}
+.tally-count{font-weight:700;font-size:0.8rem}
+.formula-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.formula-note{
+  font-family:var(--font-mono);
+  font-size:0.75rem;
+  font-weight:700;
+  padding:3px 7px;
+  border-radius:2px;
+  border:1px solid rgba(255,255,255,0.1);
+}
+.dominant-line{
+  font-family:var(--font-mono);
+  font-size:0.72rem;
+  color:rgba(255,255,255,0.6);
+  margin-bottom:10px;
+}
+.dominant-name{font-weight:700}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:800px){
+  #grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:480px){
+  #grid{grid-template-columns:repeat(2,1fr)}
+  #primitives-bar{flex-direction:column}
+  .prim-chip{min-width:unset}
+}
+
+footer{
+  text-align:center;
+  padding:20px 0 8px;
+  font-size:0.65rem;
+  color:rgba(255,255,255,0.2);
+  font-family:var(--font-mono);
+  letter-spacing:0.08em;
+  border-top:1px solid rgba(255,255,255,0.05);
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<!-- INTRO -->
+<div id="intro">
+  <div id="earth"></div>
+  <div id="atmosphere-glow"></div>
+  <div id="intro-content">
+    <h1 id="intro-title">MUSIKALISCHES WÜRFELSPIEL</h1>
+    <p id="intro-sub">A Leibnizian Tonal Calculator</p>
+    <p id="intro-sub2">After Hoegi · Kirnberger · Leibniz</p>
+    <button id="enter-btn" onclick="enterApp()">ENTER THE CALCULATOR</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div class="header-inner">
+      <span class="header-title">MUSIKALISCHES WÜRFELSPIEL</span>
+      <span class="header-sub">A Leibnizian Tonal Calculator</span>
+    </div>
+  </header>
+
+  <div id="primitives-bar"></div>
+
+  <div id="controls-row">
+    <button class="ctrl-btn" onclick="rollAll()">ROLL ALL 8 BARS</button>
+    <button class="ctrl-btn" onclick="rollNext()">ROLL NEXT BAR</button>
+    <button class="ctrl-btn reset" onclick="resetAll()">RESET</button>
+  </div>
+
+  <div id="composition-section">
+    <div id="grid"></div>
+
+    <div id="wuerfel-toggle">
+      <button class="toggle-btn" id="wuerfel-btn" onclick="toggleTable()">SHOW TABLE ▾</button>
+    </div>
+    <div id="wuerfel-table-wrap">
+      <table class="w-table" id="wuerfel-table"></table>
+    </div>
+  </div>
+
+  <div id="transport">
+    <div id="progress-wrap" id="prog-outer">
+      <div id="progress-fill"></div>
+      <div id="progress-dot"></div>
+    </div>
+    <div class="transport-row">
+      <button class="t-btn" title="Rewind to start" onclick="seekTo(0)">⏮</button>
+      <button class="t-btn" title="Previous bar" onclick="prevBar()">⏪</button>
+      <button class="t-btn play-btn" id="play-btn" title="Play/Pause" onclick="togglePlay()">▶</button>
+      <button class="t-btn" title="Next bar" onclick="nextBar()">⏩</button>
+      <button class="t-btn" title="Jump to end" onclick="jumpEnd()">⏭</button>
+      <button class="t-btn loop-btn" id="loop-btn" title="Toggle loop" onclick="toggleLoop()">🔁</button>
+      <span id="time-display">00:00 / 00:00</span>
+      <div class="tempo-wrap">
+        <span class="tempo-label">BPM</span>
+        <input type="range" id="tempo-slider" min="60" max="200" value="100" oninput="onTempoChange(this.value)">
+        <span id="tempo-val">100</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="reading-panel">
+    <div class="rp-empty">Roll the dice to begin composing your minuet.</div>
+  </div>
+
+  <footer>MUSIKALISCHES WÜRFELSPIEL · LEIBNIZIAN TONAL CALCULATOR · HOEGI · KIRNBERGER · LEIBNIZ</footer>
+</div>
+
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+const PRIMITIVES = [
+  {note:'C',latin:'Substantia',english:'Substance',desc:'The ground of all being; what persists through every change.',color:'#e05555'},
+  {note:'D',latin:'Unitas',english:'Unity',desc:'Indivisible wholeness; the monad as an arithmetic point.',color:'#5588e0'},
+  {note:'E',latin:'Cogitatio',english:'Thought',desc:'Perception and apperception; the inner life of the monad.',color:'#44bb66'},
+  {note:'F',latin:'Extensio',english:'Extension',desc:'Spatial spread; the well-founded phenomenon of matter.',color:'#dd8833'},
+  {note:'G',latin:'Motus',english:'Motion',desc:'Change through time; the law of continuity; becoming.',color:'#9955dd'},
+  {note:'A',latin:'Vis',english:'Force',desc:'Living force (vis viva); entelechy; source of all activity.',color:'#ccaa22'},
+  {note:'B',latin:'Harmonia',english:'Harmony',desc:'Pre-established coordination; the best of all possible worlds.',color:'#22aacc'},
+];
+
+const NOTES = {
+  'C3':{name:'C',oct:3,freq:130.81,primIdx:0},
+  'D3':{name:'D',oct:3,freq:146.83,primIdx:1},
+  'E3':{name:'E',oct:3,freq:164.81,primIdx:2},
+  'F3':{name:'F',oct:3,freq:174.61,primIdx:3},
+  'G3':{name:'G',oct:3,freq:196.00,primIdx:4},
+  'A3':{name:'A',oct:3,freq:220.00,primIdx:5},
+  'B3':{name:'B',oct:3,freq:246.94,primIdx:6},
+  'C4':{name:'C',oct:4,freq:261.63,primIdx:0},
+  'D4':{name:'D',oct:4,freq:293.66,primIdx:1},
+  'E4':{name:'E',oct:4,freq:329.63,primIdx:2},
+  'F4':{name:'F',oct:4,freq:349.23,primIdx:3},
+  'G4':{name:'G',oct:4,freq:392.00,primIdx:4},
+  'A4':{name:'A',oct:4,freq:440.00,primIdx:5},
+  'B4':{name:'B',oct:4,freq:493.88,primIdx:6},
+  'C5':{name:'C',oct:5,freq:523.25,primIdx:0},
+  'D5':{name:'D',oct:5,freq:587.33,primIdx:1},
+  'E5':{name:'E',oct:5,freq:659.25,primIdx:2},
+  'F5':{name:'F',oct:5,freq:698.46,primIdx:3},
+  'G5':{name:'G',oct:5,freq:784.00,primIdx:4},
+  'A5':{name:'A',oct:5,freq:880.00,primIdx:5},
+};
+
+const B = (m,i,b) => ({m,i,b});
+const MEASURES = [
+  [
+    {beats:[B('C5',['E4','G4'],'C3'),B('E5',['G4','C5'],'G3'),B('G4',['C4','E4'],'G3')],label:'Substantia → Cogitatio → Motus',gloss:'Substance awakens through Thought and stirs into Motion: the monad begins its perceptual life.'},
+    {beats:[B('E5',['C4','G4'],'C3'),B('G5',['E4','C5'],'G3'),B('C5',['G4','E4'],'G3')],label:'Cogitatio ascendit per Motum',gloss:'Thought ascends through Motion toward higher Substance: perception striving for apperception.'},
+    {beats:[B('G4',['E4','C4'],'C3'),B('E4',['C4','G4'],'G3'),B('C4',['G4','E4'],'G3')],label:'Motus ⊕ Cogitatio → Substantia',gloss:'Motion combined with Thought returns to Substance: all becoming finds its rest in being.'},
+    {beats:[B('C4',['G4','E4'],'C3'),B('G4',['E4','C5'],'G3'),B('E5',['C5','G4'],'G3')],label:'Substantia :: Motus :: Cogitatio',gloss:'Substance instantiates Motion instantiates Thought: the ascending chain of Leibnizian emanation.'},
+    {beats:[B('E5',['G4','C4'],'C3'),B('C5',['G4','E5'],'G3'),B('G4',['E4','C4'],'G3')],label:'Cogitatio ⊕ Substantia — descensus',gloss:'Thought combined with Substance descends: apperception grounds itself in its metaphysical basis.'},
+    {beats:[B('G5',['C5','E4'],'C3'),B('E5',['G4','C5'],'G3'),B('C4',['E4','G4'],'G3')],label:'Motus → alta Substantia → Cogitatio',gloss:'Motion rises to high Substance and settles into Thought: the arc of a complete monadological act.'},
+  ],
+  [
+    {beats:[B('D5',['F4','A4'],'D3'),B('F5',['A4','D4'],'A3'),B('A4',['F4','D4'],'A3')],label:'Unitas in Extensione per Vim',gloss:'Unity in Extension through Force: the monad occupies phenomenal space by its living force.'},
+    {beats:[B('F5',['D4','A4'],'D3'),B('A5',['F4','D5'],'A3'),B('F4',['D4','A4'],'A3')],label:'Extensio et Vis ascendunt ad Unitatem',gloss:'Extension and Force ascend toward Unity: matter animated, rising toward its indivisible source.'},
+    {beats:[B('A4',['F4','D4'],'D3'),B('F4',['D4','A3'],'A3'),B('D4',['F4','A4'],'A3')],label:'Vis continet Extensionem in Unitate',gloss:'Force contains Extension within Unity: living force bounds the phenomenal body.'},
+    {beats:[B('D4',['A4','F4'],'D3'),B('A4',['F4','D5'],'A3'),B('F5',['D5','A4'],'A3')],label:'Unitas dominatur Extensioni per Vim',gloss:'Unity governs Extension through Force: the monad rules its body without touching it.'},
+    {beats:[B('F5',['A4','D4'],'D3'),B('D5',['A4','F4'],'A3'),B('A4',['F4','D4'],'A3')],label:'Extensio fundata in Unitate per Vim',gloss:'Extension grounded in Unity through Force: Leibniz\'s well-founded phenomenon.'},
+    {beats:[B('A4',['D5','F4'],'D3'),B('F5',['A4','D5'],'A3'),B('D4',['A4','F4'],'A3')],label:'Vis et alta Unitas in Extensione',gloss:'Force and high Unity in Extension: entelechy aspires to higher oneness through matter.'},
+  ],
+  [
+    {beats:[B('G4',['B4','D5'],'G3'),B('B4',['D5','G4'],'B3'),B('D5',['G4','B4'],'B3')],label:'Motus → Harmonia → Unitas altum',gloss:'Motion toward Harmony and Unity aloft: change ordered by pre-established coordination.'},
+    {beats:[B('B4',['G4','D5'],'G3'),B('D5',['B4','G5'],'B3'),B('G5',['D5','B4'],'B3')],label:'Harmonia et Unitas in altum',gloss:'Harmony and Unity ascending: the dominant chord straining toward its resolution.'},
+    {beats:[B('D5',['B4','G4'],'G3'),B('B4',['G4','D4'],'B3'),B('G4',['D4','B3'],'B3')],label:'Unitas per Harmoniam in Motum',gloss:'Unity through Harmony into Motion: the One unfolds as many well-tuned parts.'},
+    {beats:[B('G4',['D5','B4'],'G3'),B('D5',['B4','G5'],'B3'),B('B4',['G4','D5'],'B3')],label:'Motus et Unitas sunt Harmonia',gloss:'Motion and Unity are Harmony: movement and wholeness co-define all consonance.'},
+    {beats:[B('B4',['G4','D4'],'G3'),B('G4',['D4','B3'],'B3'),B('D5',['B4','G5'],'B3')],label:'Harmonia in Motu ad Unitatem tendit',gloss:'Harmony in Motion tends toward Unity: pre-established order persists through all becoming.'},
+    {beats:[B('D5',['G4','B4'],'G3'),B('G5',['D5','B4'],'B3'),B('B4',['G4','D5'],'B3')],label:'Unitas et Motus generant Harmoniam',gloss:'Unity and Motion generate Harmony: from these two principles, all consonance arises.'},
+  ],
+  [
+    {beats:[B('E5',['G4','C4'],'C3'),B('G4',['E4','C4'],'G3'),B('E4',['C4','G4'],'G3')],label:'Cogitatio circa Motum',gloss:'Thought circling Motion: the mind\'s ceaseless apperception of temporal flow; the phrase closes.'},
+    {beats:[B('C5',['E4','G4'],'C3'),B('E4',['C4','G4'],'G3'),B('C4',['G4','E4'],'G3')],label:'Substantia reflexa in Cogitationem',gloss:'Substance reflected in Thought: the monad\'s self-knowledge; the cadence of introspection.'},
+    {beats:[B('G4',['B4','D5'],'C3'),B('B4',['G4','D4'],'G3'),B('G4',['E4','C4'],'G3')],label:'Motus et Harmonia — finis primae',gloss:'Motion and Harmony — end of the first reprise; change orderly resolves.'},
+    {beats:[B('E4',['C4','G4'],'C3'),B('C4',['E4','G4'],'G3'),B('E4',['C5','G4'],'G3')],label:'Cogitatio inter Substantias',gloss:'Thought between two Substances: apperception rises from and returns to its ground.'},
+    {beats:[B('C5',['G4','E5'],'C3'),B('E5',['C5','G4'],'G3'),B('C4',['E4','G4'],'G3')],label:'Alta et ima Substantia coincidunt',gloss:'High and low Substance coincide: the monad\'s unity across all levels of being.'},
+    {beats:[B('G4',['E4','C4'],'C3'),B('E4',['C4','G3'],'G3'),B('C4',['E4','G4'],'G3')],label:'Motus · Cogitatio · Substantia — pax',gloss:'Motion, Thought, Substance: the descending cadence; all activity comes to rest in being.'},
+  ],
+  [
+    {beats:[B('C5',['B4','A4'],'C3'),B('B4',['A4','G4'],'E3'),B('A4',['G4','E4'],'G3')],label:'Alta Substantia · Harmonia · Vis',gloss:'High Substance descending through Harmony and Force: the divine order enters the active world.'},
+    {beats:[B('A4',['B4','C5'],'C3'),B('B4',['C5','E5'],'E3'),B('C5',['E5','G5'],'G3')],label:'Vis et Harmonia ascendunt in Substantiam',gloss:'Force and Harmony ascend to Substance: all activity resolves upward into being.'},
+    {beats:[B('E5',['D5','C5'],'C3'),B('D5',['C5','B4'],'E3'),B('C5',['B4','A4'],'G3')],label:'Cogitatio, Unitas, Substantia in altis',gloss:'Thought, Unity, and Substance at the heights: the three supreme concepts converge above.'},
+    {beats:[B('C5',['A4','G4'],'C3'),B('A4',['G4','E4'],'E3'),B('G4',['E4','C4'],'G3')],label:'Substantia · Vis · Motus — descensus',gloss:'Substance, Force, Motion descending: the divine order made immanent; the great chain of being.'},
+    {beats:[B('G4',['A4','B4'],'C3'),B('A4',['B4','C5'],'E3'),B('B4',['C5','A4'],'G3')],label:'Motus per Vim in Harmoniam',gloss:'Motion through Force into Harmony: change, animated by living force, resolves in consonance.'},
+    {beats:[B('B4',['A4','G4'],'C3'),B('A4',['G4','E4'],'E3'),B('G4',['E4','C4'],'G3')],label:'Harmonia · Vis · Motus in se',gloss:'Harmony, Force, Motion in themselves: the living order of the world, self-contained.'},
+  ],
+  [
+    {beats:[B('F4',['A4','C5'],'F3'),B('E4',['A4','C4'],'C4'),B('D4',['F4','A4'],'A3')],label:'Extensio · Cogitatio · Unitas — descensus',gloss:'Extension, Thought, Unity descending: the phenomenal, mental, and simple converge below.'},
+    {beats:[B('A4',['F4','C4'],'F3'),B('C5',['A4','F4'],'C4'),B('A4',['F5','C5'],'A3')],label:'Vis in Extensione per Substantiam',gloss:'Force in Extension through Substance: living force gives phenomenal matter its form.'},
+    {beats:[B('F4',['G4','A4'],'F3'),B('G4',['A4','C5'],'C4'),B('A4',['C5','F4'],'A3')],label:'Extensio · Motus · Vis ascendunt',gloss:'Extension, Motion, Force ascending: matter set in motion becomes animated, living.'},
+    {beats:[B('C5',['A4','F4'],'F3'),B('A4',['F4','C4'],'C4'),B('F4',['C4','A3'],'A3')],label:'Substantia (alta) → Extensio',gloss:'High Substance descends into Extension: the metaphysical grounds the phenomenal world.'},
+    {beats:[B('A4',['C5','F5'],'F3'),B('C5',['F5','A5'],'C4'),B('F5',['C5','A4'],'A3')],label:'Vis et Extensio — ascensus maximus',gloss:'Force and Extension — maximum ascent: matter alive rises toward the summit of being.'},
+    {beats:[B('F5',['A4','C5'],'F3'),B('A4',['F4','C4'],'C4'),B('F4',['A3','C4'],'A3')],label:'Extensio et Vis — phaenomenon',gloss:'Extension and Force — the well-founded phenomenon: Leibniz\'s matter as appearance of monads.'},
+  ],
+  [
+    {beats:[B('B4',['G4','F4'],'G3'),B('A4',['F4','D4'],'B3'),B('G4',['F4','D4'],'F3')],label:'Harmonia · Vis · Motus — tensio maxima',gloss:'Harmony, Force, Motion — maximum tension: the dominant seventh calls imperatively for resolution.'},
+    {beats:[B('G4',['B4','F4'],'G3'),B('A4',['B4','D5'],'B3'),B('B4',['D5','F4'],'F3')],label:'Motus per Vim in Harmoniam tendit',gloss:'Motion tends through Force toward Harmony: all becoming aims at pre-established order.'},
+    {beats:[B('D5',['B4','F4'],'G3'),B('C5',['B4','G4'],'B3'),B('B4',['G4','F4'],'F3')],label:'Unitas et Harmonia ante resolutionem',gloss:'Unity and Harmony before resolution: the penultimate moment, the anticipation of the end.'},
+    {beats:[B('F4',['B4','D5'],'G3'),B('D5',['F4','B4'],'B3'),B('B4',['G4','F4'],'F3')],label:'Extensio · Unitas · Harmonia — urgency',gloss:'Extension, Unity, Harmony — urgency: the 7th chord gathers energy for the final cadence.'},
+    {beats:[B('G4',['B4','D5'],'G3'),B('B4',['D5','F5'],'B3'),B('F5',['D5','B4'],'F3')],label:'Motus · Harmonia · Extensio — ante finem',gloss:'Motion, Harmony, Extension — before the end: the three great forces strain toward resolution.'},
+    {beats:[B('B4',['D5','G4'],'G3'),B('D5',['F5','B4'],'B3'),B('F5',['B4','G4'],'F3')],label:'Harmonia · Unitas · Motus alti',gloss:'Harmony, Unity, Motion aloft: high dominant, drawn upward, poised for the final fall.'},
+  ],
+  [
+    {beats:[B('G4',['E4','C4'],'C3'),B('E4',['C4','G3'],'G3'),B('C4',['G4','E4'],'C3')],label:'Motus · Cogitatio · Substantia — finis',gloss:'Motion, Thought, Substance — the final cadence: all activity and perception come to rest in being.'},
+    {beats:[B('C5',['E4','G4'],'C3'),B('E4',['C4','G4'],'G3'),B('C4',['E4','G3'],'C3')],label:'Substantia reflexa — iterum atque iterum',gloss:'Substance reflected again and again: the eternal return; the monad knows itself at the last.'},
+    {beats:[B('E4',['C4','G4'],'C3'),B('C4',['E4','G4'],'G3'),B('G3',['C4','E4'],'C3')],label:'Cogitatio descendit in Substantiam',gloss:'Thought descends into Substance: the mind rests in its ground; the lowest note closes all.'},
+    {beats:[B('C5',['G4','E4'],'C3'),B('G4',['C5','E5'],'G3'),B('C4',['E4','G4'],'C3')],label:'Alta et ima Substantia per Motum',gloss:'High and low Substance through Motion: the perfect octave cadence; unity across all levels.'},
+    {beats:[B('E4',['G4','C5'],'C3'),B('G4',['C5','E5'],'G3'),B('C5',['G5','E4'],'C3')],label:'Cogitatio · Motus → alta Substantia',gloss:'Thought and Motion rise to high Substance: the minuet ascends to its luminous close.'},
+    {beats:[B('G4',['C5','E5'],'C3'),B('C5',['E5','G5'],'G3'),B('E4',['C4','G4'],'C3')],label:'Motus · Substantia · Cogitatio — pax',gloss:'Motion, Substance, Thought — peace: the resolution of all tension in the eternal present.'},
+  ],
+];
+
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII'];
+const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let selections = new Array(8).fill(null); // index 0-5 for each bar
+let tempo = 100;
+
+let audioCtx = null;
+function getCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+let playback = {
+  isPlaying:false,
+  offset:0,
+  startedAt:0,
+  looping:false,
+  scheduledOscs:[],
+  rafId:null,
+};
+
+/* ============================================================
+   CANVAS / STARFIELD
+   ============================================================ */
+class StarField {
+  constructor(canvas){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.stars = [];
+    this.symbols = [];
+    this.symList = ['0','1','∞','∂','∑','∫','≡','∀','∃','ℕ','φ','λ','μ','⊕','vis','monad','1','0','1','1','0'];
+    this.resize();
+    this.init();
+    window.addEventListener('resize',()=>this.resize());
+    this.running = true;
+    this.animate();
+  }
+  resize(){
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+  init(){
+    this.stars = [];
+    for(let i=0;i<300;i++){
+      this.stars.push({
+        x:Math.random()*this.canvas.width,
+        y:Math.random()*this.canvas.height,
+        r:Math.random()*1.4+0.3,
+        speed:Math.random()*0.25+0.05,
+        opacity:Math.random()*0.6+0.1,
+      });
+    }
+    this.symbols = [];
+    for(let i=0;i<50;i++){
+      this.symbols.push({
+        x:Math.random()*this.canvas.width,
+        y:Math.random()*this.canvas.height,
+        text:this.symList[Math.floor(Math.random()*this.symList.length)],
+        speed:Math.random()*0.18+0.03,
+        opacity:Math.random()*0.07+0.01,
+        size:Math.random()*10+8,
+        drift:(Math.random()-0.5)*0.2,
+      });
+    }
+  }
+  animate(){
+    if(!this.running) return;
+    const c = this.ctx;
+    const w = this.canvas.width, h = this.canvas.height;
+    c.fillStyle = 'rgba(3,3,12,0.18)';
+    c.fillRect(0,0,w,h);
+    for(const s of this.stars){
+      s.y -= s.speed;
+      if(s.y < -2){ s.y=h+2; s.x=Math.random()*w; }
+      c.beginPath();
+      c.arc(s.x,s.y,s.r,0,Math.PI*2);
+      c.fillStyle = `rgba(255,255,255,${s.opacity})`;
+      c.fill();
+    }
+    c.font = '';
+    for(const sym of this.symbols){
+      sym.y -= sym.speed;
+      sym.x += sym.drift;
+      if(sym.y < -20){ sym.y=h+20; sym.x=Math.random()*w; }
+      if(sym.x < -40) sym.x=w+40;
+      if(sym.x > w+40) sym.x=-40;
+      c.font = `${sym.size}px 'Space Mono', monospace`;
+      c.fillStyle = `rgba(0,180,220,${sym.opacity})`;
+      c.fillText(sym.text,sym.x,sym.y);
+    }
+    requestAnimationFrame(()=>this.animate());
+  }
+}
+
+/* ============================================================
+   INTRO
+   ============================================================ */
+function enterApp(){
+  const intro = document.getElementById('intro');
+  const app = document.getElementById('app');
+  intro.classList.add('hidden');
+  setTimeout(()=>{
+    intro.style.display='none';
+    app.classList.add('visible');
+  },1000);
+}
+
+/* ============================================================
+   BUILD PRIMITIVES BAR
+   ============================================================ */
+function buildPrimitivesBar(){
+  const bar = document.getElementById('primitives-bar');
+  bar.innerHTML = '';
+  PRIMITIVES.forEach(p=>{
+    const chip = document.createElement('div');
+    chip.className = 'prim-chip';
+    chip.innerHTML = `
+      <div class="prim-note" style="color:${p.color}">${p.note}</div>
+      <div class="prim-names">
+        <div class="prim-latin">${p.latin}</div>
+        <div class="prim-english">${p.english}</div>
+      </div>
+      <div class="prim-tooltip">${p.desc}</div>
+    `;
+    bar.appendChild(chip);
+  });
+}
+
+/* ============================================================
+   BUILD GRID
+   ============================================================ */
+function buildGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for(let bar=0;bar<8;bar++){
+    const cell = document.createElement('div');
+    cell.className = 'bar-cell';
+    cell.id = `bar-cell-${bar}`;
+    cell.onclick = ()=>rollBar(bar);
+    cell.innerHTML = `
+      <div class="bar-num">${ROMAN[bar]}</div>
+      <div class="bar-dice" id="dice-${bar}">—</div>
+      <div class="note-dots" id="dots-${bar}"></div>
+      <div class="bar-label" id="blabel-${bar}"></div>
+    `;
+    grid.appendChild(cell);
+  }
+}
+
+/* ============================================================
+   BUILD WÜRFELSPIEL TABLE
+   ============================================================ */
+function buildTable(){
+  const tbl = document.getElementById('wuerfel-table');
+  let html = '<thead><tr><th class="row-label">Roll</th>';
+  for(let b=0;b<8;b++) html += `<th>Bar ${ROMAN[b]}</th>`;
+  html += '</tr></thead><tbody>';
+  for(let row=0;row<6;row++){
+    html += `<tr><td class="row-label">${row+1}</td>`;
+    for(let bar=0;bar<8;bar++){
+      const m = MEASURES[bar][row];
+      const noteStr = m.beats.map(bk=>bk.m.replace(/\d/,'')).join(' ');
+      html += `<td id="wtd-${bar}-${row}" onclick="selectFromTable(${bar},${row})">${noteStr}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+function updateTableHighlights(){
+  for(let bar=0;bar<8;bar++){
+    for(let row=0;row<6;row++){
+      const td = document.getElementById(`wtd-${bar}-${row}`);
+      if(td) td.classList.toggle('selected', selections[bar]===row);
+    }
+  }
+}
+
+function selectFromTable(bar,row){
+  applySelection(bar,row);
+}
+
+function toggleTable(){
+  const wrap = document.getElementById('wuerfel-table-wrap');
+  const btn = document.getElementById('wuerfel-btn');
+  if(wrap.classList.contains('open')){
+    wrap.classList.remove('open');
+    btn.textContent = 'SHOW TABLE ▾';
+  } else {
+    wrap.classList.add('open');
+    btn.textContent = 'HIDE TABLE ▴';
+  }
+}
+
+/* ============================================================
+   NOTE COLOR HELPERS
+   ============================================================ */
+function noteColor(noteKey){
+  const n = NOTES[noteKey];
+  if(!n) return '#888';
+  return PRIMITIVES[n.primIdx].color;
+}
+
+/* ============================================================
+   RENDER BAR CELL
+   ============================================================ */
+function renderBarCell(bar, optIdx){
+  const m = MEASURES[bar][optIdx];
+  const diceEl = document.getElementById(`dice-${bar}`);
+  const dotsEl = document.getElementById(`dots-${bar}`);
+  const labelEl = document.getElementById(`blabel-${bar}`);
+
+  diceEl.textContent = DICE_FACES[optIdx];
+  diceEl.classList.remove('just-rolled');
+  void diceEl.offsetWidth;
+  diceEl.classList.add('just-rolled');
+
+  // build note dots
+  dotsEl.innerHTML = '';
+  const melodyRow = document.createElement('div');
+  melodyRow.className = 'note-row';
+  const innerRow = document.createElement('div');
+  innerRow.className = 'note-row';
+  const bassRow = document.createElement('div');
+  bassRow.className = 'note-row';
+
+  m.beats.forEach(beat=>{
+    const md = document.createElement('div');
+    md.className = 'ndot';
+    md.style.background = noteColor(beat.m);
+    md.title = beat.m;
+    melodyRow.appendChild(md);
+
+    beat.i.forEach(n=>{
+      const id = document.createElement('div');
+      id.className = 'ndot';
+      id.style.background = noteColor(n);
+      id.style.opacity='0.6';
+      id.title = n;
+      innerRow.appendChild(id);
+    });
+
+    const bd = document.createElement('div');
+    bd.className = 'ndot bass';
+    bd.style.background = noteColor(beat.b);
+    bd.title = beat.b;
+    bassRow.appendChild(bd);
+  });
+
+  dotsEl.appendChild(melodyRow);
+  dotsEl.appendChild(innerRow);
+  dotsEl.appendChild(bassRow);
+
+  // label: first ~28 chars
+  const words = m.label.split(' ');
+  labelEl.textContent = words.slice(0,4).join(' ');
+}
+
+/* ============================================================
+   ROLL LOGIC
+   ============================================================ */
+function rollBar(bar, noAnim){
+  const optIdx = Math.floor(Math.random()*6);
+  applySelection(bar, optIdx, noAnim);
+}
+
+function applySelection(bar, optIdx, noAnim){
+  selections[bar] = optIdx;
+  renderBarCell(bar, optIdx);
+  if(!noAnim){
+    const cell = document.getElementById(`bar-cell-${bar}`);
+    cell.classList.remove('rolling');
+    void cell.offsetWidth;
+    cell.classList.add('rolling');
+  }
+  updateTableHighlights();
+  renderReadingPanel();
+}
+
+function rollAll(){
+  const wasPlaying = playback.isPlaying;
+  if(wasPlaying) stopAudio();
+  for(let i=0;i<8;i++){
+    const delay = i*100;
+    setTimeout(()=>rollBar(i),delay);
+  }
+  setTimeout(()=>{
+    if(wasPlaying){ playback.offset=0; startAudio(); }
+  }, 8*100+50);
+}
+
+function rollNext(){
+  let target = selections.findIndex(s=>s===null);
+  if(target===-1){
+    // all filled — roll the next after current playback or just first
+    target = 0;
+  }
+  rollBar(target);
+}
+
+function resetAll(){
+  const wasPlaying = playback.isPlaying;
+  if(wasPlaying) stopAudio();
+  selections = new Array(8).fill(null);
+  playback.offset = 0;
+  for(let i=0;i<8;i++){
+    const diceEl = document.getElementById(`dice-${i}`);
+    const dotsEl = document.getElementById(`dots-${i}`);
+    const labelEl = document.getElementById(`blabel-${i}`);
+    if(diceEl) diceEl.textContent = '—';
+    if(dotsEl) dotsEl.innerHTML = '';
+    if(labelEl) labelEl.textContent = '';
+    const cell = document.getElementById(`bar-cell-${i}`);
+    if(cell) cell.classList.remove('rolling','active-playback');
+  }
+  updateTableHighlights();
+  renderReadingPanel();
+  updateTransportUI();
+}
+
+/* ============================================================
+   READING PANEL
+   ============================================================ */
+function renderReadingPanel(){
+  const panel = document.getElementById('reading-panel');
+  const filled = selections.filter(s=>s!==null);
+  if(filled.length===0){
+    panel.innerHTML = '<div class="rp-empty">Roll the dice to begin composing your minuet.</div>';
+    return;
+  }
+  let html = '<div id="reading-list">';
+  for(let i=0;i<8;i++){
+    if(selections[i]===null) continue;
+    const m = MEASURES[i][selections[i]];
+    const isCurrent = (playback.isPlaying && getCurrentBar()===i);
+    html += `<div class="reading-item${isCurrent?' current':''}" id="ri-${i}">
+      <div class="ri-left">
+        <div class="ri-bar">${ROMAN[i]}</div>
+        <div class="ri-dice">${DICE_FACES[selections[i]]}</div>
+      </div>
+      <div class="ri-right">
+        <div class="ri-label">${m.label}</div>
+        <div class="ri-gloss">${m.gloss}</div>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+
+  if(filled.length===8){
+    html += buildAnalysis();
+  }
+  panel.innerHTML = html;
+}
+
+function buildAnalysis(){
+  // tally primitives from melody notes
+  const tally = new Array(7).fill(0);
+  const melodyNotes = [];
+  for(let i=0;i<8;i++){
+    if(selections[i]===null) continue;
+    const m = MEASURES[i][selections[i]];
+    m.beats.forEach(beat=>{
+      const n = NOTES[beat.m];
+      if(n){ tally[n.primIdx]++; melodyNotes.push({key:beat.m,primIdx:n.primIdx}); }
+    });
+  }
+  const maxCount = Math.max(...tally);
+  const domIdx = tally.indexOf(maxCount);
+  const dom = PRIMITIVES[domIdx];
+
+  let html = '<div id="analysis-panel">';
+  html += `<div class="analysis-title">COMPOSITIONAL ANALYSIS</div>`;
+  html += `<div class="dominant-line">Dominant Primitive: <span class="dominant-name" style="color:${dom.color}">${dom.latin} (${dom.english})</span> — ${maxCount} occurrences</div>`;
+
+  html += '<div class="tally-row">';
+  PRIMITIVES.forEach((p,idx)=>{
+    if(tally[idx]===0) return;
+    html += `<div class="tally-chip" style="border-color:${p.color}33;background:${p.color}11">
+      <span style="color:${p.color}" class="tally-count">${tally[idx]}</span>
+      <span style="color:${p.color};font-size:0.65rem">${p.latin}</span>
+    </div>`;
+  });
+  html += '</div>';
+
+  html += '<div class="analysis-title" style="margin-top:8px">UNIVERSAL FORMULA</div>';
+  html += '<div class="formula-row">';
+  melodyNotes.forEach(mn=>{
+    const p = PRIMITIVES[mn.primIdx];
+    html += `<div class="formula-note" style="color:${p.color};border-color:${p.color}44;background:${p.color}11">${mn.key.replace(/\d/,'')}</div>`;
+  });
+  html += '</div>';
+  html += '</div>';
+  return html;
+}
+
+/* ============================================================
+   AUDIO ENGINE
+   ============================================================ */
+function playHarpsichordNote(freq, startTime, dur, vol=0.25){
+  if(!freq) return [];
+  const ctx = getCtx();
+  const oscs = [];
+  const amps = [1, 0.5, 0.25, 0.12, 0.06];
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(vol, startTime);
+  masterGain.gain.exponentialRampToValueAtTime(0.0001, startTime+dur);
+  masterGain.connect(ctx.destination);
+  for(let h=0;h<5;h++){
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq*(h+1);
+    const g = ctx.createGain();
+    g.gain.value = amps[h];
+    osc.connect(g);
+    g.connect(masterGain);
+    osc.start(startTime);
+    osc.stop(startTime+dur+0.05);
+    oscs.push(osc);
+  }
+  return oscs;
+}
+
+function playBassNote(freq, startTime, dur){
+  if(!freq) return [];
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.10, startTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, startTime+dur+0.1);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime+dur+0.2);
+  return [osc];
+}
+
+/* ============================================================
+   PLAYBACK ENGINE
+   ============================================================ */
+function beatDuration(){
+  return 60 / tempo;
+}
+function barDuration(){
+  return beatDuration()*3;
+}
+function totalDuration(){
+  return barDuration()*8;
+}
+function currentPosition(){
+  if(!playback.isPlaying) return playback.offset;
+  const ctx = getCtx();
+  return playback.offset + (ctx.currentTime - playback.startedAt);
+}
+function getCurrentBar(){
+  const pos = currentPosition();
+  return Math.min(7, Math.floor(pos / barDuration()));
+}
+
+function startAudio(){
+  const ctx = getCtx();
+  if(ctx.state==='suspended') ctx.resume();
+  const bd = beatDuration();
+  const startAt = ctx.currentTime + 0.05;
+  playback.startedAt = ctx.currentTime;
+  playback.isPlaying = true;
+  playback.scheduledOscs = [];
+
+  const totalDur = totalDuration();
+
+  for(let bar=0;bar<8;bar++){
+    const si = selections[bar];
+    if(si===null) continue;
+    const m = MEASURES[bar][si];
+    const barStartSec = bar * barDuration() - playback.offset;
+    if(barStartSec + barDuration() < 0) continue; // already past
+
+    m.beats.forEach((beat,bi)=>{
+      const beatOffset = barStartSec + bi*bd;
+      if(beatOffset < -0.05) return;
+      const t = startAt + Math.max(0, beatOffset);
+
+      // melody
+      const mn = NOTES[beat.m];
+      if(mn){
+        const oscs = playHarpsichordNote(mn.freq, t, bd*0.8, 0.25);
+        playback.scheduledOscs.push(...oscs);
+      }
+      // inner
+      beat.i.forEach(ikey=>{
+        const inn = NOTES[ikey];
+        if(inn){
+          const oscs = playHarpsichordNote(inn.freq, t, bd*0.75, 0.12);
+          playback.scheduledOscs.push(...oscs);
+        }
+      });
+      // bass
+      const bn = NOTES[beat.b];
+      if(bn){
+        const oscs = playBassNote(bn.freq, t, bd*0.9);
+        playback.scheduledOscs.push(...oscs);
+      }
+    });
+  }
+
+  // schedule loop / stop
+  const remaining = totalDur - playback.offset;
+  if(remaining > 0){
+    const endTimer = setTimeout(()=>{
+      if(playback.isPlaying){
+        if(playback.looping){
+          stopAudio();
+          playback.offset = 0;
+          startAudio();
+        } else {
+          stopAudio();
+          playback.offset = 0;
+          updateTransportUI();
+        }
+      }
+    }, remaining*1000 + 100);
+    playback._endTimer = endTimer;
+  }
+
+  playback.rafId = requestAnimationFrame(rafLoop);
+  document.getElementById('play-btn').textContent = '⏸';
+}
+
+function stopAudio(){
+  if(playback._endTimer){ clearTimeout(playback._endTimer); }
+  if(playback.rafId){ cancelAnimationFrame(playback.rafId); playback.rafId=null; }
+  const savedPos = currentPosition();
+  playback.offset = Math.min(savedPos, totalDuration());
+  playback.isPlaying = false;
+  for(const osc of playback.scheduledOscs){
+    try{ osc.stop(0); }catch(e){}
+  }
+  playback.scheduledOscs = [];
+  document.getElementById('play-btn').textContent = '▶';
+  updateTransportUI();
+}
+
+function togglePlay(){
+  if(playback.isPlaying){
+    stopAudio();
+  } else {
+    // need at least one bar selected
+    const hasAny = selections.some(s=>s!==null);
+    if(!hasAny){ return; }
+    if(playback.offset >= totalDuration()-0.1) playback.offset=0;
+    startAudio();
+  }
+}
+
+function seekTo(secs){
+  const wasPlaying = playback.isPlaying;
+  stopAudio();
+  playback.offset = Math.max(0, Math.min(secs, totalDuration()));
+  updateTransportUI();
+  if(wasPlaying) startAudio();
+}
+
+function toggleLoop(){
+  playback.looping = !playback.looping;
+  document.getElementById('loop-btn').classList.toggle('active', playback.looping);
+}
+
+function prevBar(){
+  const cur = Math.max(0, Math.floor(currentPosition()/barDuration())-1);
+  seekTo(cur*barDuration());
+}
+function nextBar(){
+  const cur = Math.min(7, Math.floor(currentPosition()/barDuration())+1);
+  seekTo(cur*barDuration());
+}
+function jumpEnd(){
+  seekTo(totalDuration());
+}
+
+function rafLoop(){
+  updateTransportUI();
+  if(playback.isPlaying) playback.rafId=requestAnimationFrame(rafLoop);
+}
+
+function updateTransportUI(){
+  const pos = currentPosition();
+  const total = totalDuration();
+  const pct = total>0 ? Math.min(100, (pos/total)*100) : 0;
+
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('progress-dot').style.left = pct+'%';
+  document.getElementById('time-display').textContent = `${fmtTime(pos)} / ${fmtTime(total)}`;
+
+  // highlight current bar
+  for(let i=0;i<8;i++){
+    const cell=document.getElementById(`bar-cell-${i}`);
+    if(cell) cell.classList.toggle('active-playback', playback.isPlaying && getCurrentBar()===i);
+  }
+  // highlight current reading
+  if(playback.isPlaying){
+    for(let i=0;i<8;i++){
+      const ri=document.getElementById(`ri-${i}`);
+      if(ri) ri.classList.toggle('current', getCurrentBar()===i);
+    }
+  }
+}
+
+function fmtTime(s){
+  const m=Math.floor(s/60);
+  const sec=Math.floor(s%60);
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function onTempoChange(val){
+  const wasPlaying = playback.isPlaying;
+  const pos = currentPosition();
+  if(wasPlaying) stopAudio();
+  tempo = parseInt(val);
+  document.getElementById('tempo-val').textContent = tempo;
+  if(wasPlaying){
+    playback.offset = pos;
+    startAudio();
+  }
+}
+
+/* ============================================================
+   PROGRESS BAR INTERACTION
+   ============================================================ */
+function initProgressBar(){
+  const wrap = document.getElementById('progress-wrap');
+  let dragging=false;
+
+  function seekFromEvent(e){
+    const r=wrap.getBoundingClientRect();
+    const x=Math.max(0,Math.min(e.clientX-r.left,r.width));
+    const frac=x/r.width;
+    seekTo(frac*totalDuration());
+  }
+  function touchSeek(e){
+    e.preventDefault();
+    const r=wrap.getBoundingClientRect();
+    const x=Math.max(0,Math.min(e.touches[0].clientX-r.left,r.width));
+    seekTo((x/r.width)*totalDuration());
+  }
+
+  wrap.addEventListener('mousedown',e=>{dragging=true;seekFromEvent(e);});
+  document.addEventListener('mousemove',e=>{if(dragging)seekFromEvent(e);});
+  document.addEventListener('mouseup',()=>{dragging=false;});
+  wrap.addEventListener('touchstart',touchSeek,{passive:false});
+  wrap.addEventListener('touchmove',touchSeek,{passive:false});
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function init(){
+  const canvas = document.getElementById('bg-canvas');
+  new StarField(canvas);
+  buildPrimitivesBar();
+  buildGrid();
+  buildTable();
+  initProgressBar();
+  updateTransportUI();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
